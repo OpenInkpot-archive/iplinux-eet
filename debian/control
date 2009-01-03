@@ -1,10 +1,14 @@
 Source: eet
-Section: libs
+Section: core
 Priority: optional
-Maintainer: Falko Schmidt <falko@alphagemini.org>
+Maintainer: Alexander Kerner <lunohod@openinkpot.org>
 Build-Depends: debhelper (>= 6), cdbs, automake1.7 | automaken, libtool, pkg-config, zlib1g-dev, libjpeg62-dev, doxygen, libeina-dev
 Standards-Version: 3.7.3
 Homepage: http://www.enlightenment.org
+XCS-Cross-Host-BuilD-Depends: debhelper (>= 5), cdbs, automake1.7 | automaken, libtool, pkg-config
+XCS-Cross-Build-Depends: zlib1g-dev, libjpeg62-dev, libeina-dev
+XS-Vcs-Git: http://git.openinkpot.org/eet.git
+XS-Vcs-Browser: http://git.openinkpot.org/eet.git
 
 Package: libeet-dev
 Section: libdevel
@@ -18,20 +22,6 @@ Description: Enlightenment DR17 file chunk reading/writing library development f
  this once here.
  .
  This package contains headers and static libraries for development with libeet.
- libeet.
-
-Package: libeet-doc
-Section: doc
-Architecture: all
-Enhances: libeet-dev
-Description: libeet1 API documentation
- Eet is a tiny library designed to write an arbitary set of chunks of data to a
- file and optionally compress each chunk (very much like a zip file) and allow
- fast random-access reading of the file later on. It does not do zip as zip
- itself has more complexity than we need, and it was much simpler to implement
- this once here.
- .
- This package contains documentation (html and manpages) for development with
  libeet.
 
 Package: libeet1
@@ -61,7 +51,7 @@ Description: Enlightenment DR17 file chunk reading/writing utility
 
 Package: libeet-dbg
 Architecture: any
-Section: libdevel
+Section: debug
 Priority: extra
 Depends: libeet1 (= ${binary:Version})
 Description: Enlightenment DR17 file chunk reading/writing library - debug symbols

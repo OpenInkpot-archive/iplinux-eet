@@ -1,3 +1,9 @@
+eet (1.1.0-20090103-1) unstable; urgency=low
+
+  * OI build
+
+ -- Alexander Kerner <lunohod@openinkpot.org>  Sat, 03 Jan 2009 18:23:16 +0000
+
 eet (1.1.0-1) unstable; urgency=low
 
   * a SVN release.
