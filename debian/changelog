@@ -1,3 +1,9 @@
+eet (1.1.0-20090103-1) asimov; urgency=low
+
+  * First IPlinux build
+
+ -- Alexander Kerner <lunohod@openinkpot.org>  Sat, 14 Mar 2009 12:08:12 +0100
+
 eet (1.1.0-20090103-1) unstable; urgency=low
 
   * OI build
