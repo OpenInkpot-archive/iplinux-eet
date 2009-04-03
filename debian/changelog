@@ -1,3 +1,9 @@
+eet (1.1.0-20090103-4+b1) asimov; urgency=low
+
+  * Rebuild with new toolchain.
+
+ -- Alexander Kerner <lunohod@openinkpot.org>  Fri, 03 Apr 2009 16:15:51 +0200
+
 eet (1.1.0-20090103-4) asimov; urgency=low
 
   * Added cdbs-embedded to the XCS-Cross-Host-BuilD-Depends
