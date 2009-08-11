@@ -1,7 +1,7 @@
 # get rid of that stupid cache mechanism
 rm -f config.cache
 
-AC_INIT([eet], [1.1.0], [enlightenment-devel@lists.sourceforge.net])
+AC_INIT([eet], [1.2.2], [enlightenment-devel@lists.sourceforge.net])
 AC_PREREQ([2.52])
 AC_CONFIG_SRCDIR([configure.ac])
 AC_CONFIG_MACRO_DIR([m4])
@@ -22,8 +22,11 @@ VMIN=`echo $PACKAGE_VERSION | awk -F. '{printf("%s", $2);}'`
 VMIC=`echo $PACKAGE_VERSION | awk -F. '{printf("%s", $3);}'`
 SNAP=`echo $PACKAGE_VERSION | awk -F. '{printf("%s", $4);}'`
 version_info=`expr $VMAJ + $VMIN`":$VMIC:$VMIN"
+#release="ver-pre-svn-00"
+#release_info="-release $release"
+release_info=""
 AC_SUBST(version_info)
-
+AC_SUBST(release_info)
 
 ### Default options with respect to host
 
@@ -74,6 +77,25 @@ AC_ARG_ENABLE([gnutls],
 )
 AC_MSG_CHECKING([whether to use Gnutls])
 AC_MSG_RESULT([${want_gnutls}])
+
+# Specific GNUTLS improvement
+
+new_gnutls_api="no"
+AC_ARG_ENABLE(new-gnutls-api,
+   [AC_HELP_STRING(
+      [--enable-new-gnutls-api],
+      [enable use of gnutls_x509_crt_verify_hash. [[default=disable]]]
+    )],
+   [new_gnutls_api=$enableval]
+)
+AC_MSG_CHECKING([whether to use gnutls_x509_crt_verify_hash])
+AC_MSG_RESULT([${new_gnutls_api}])
+
+if test "x${new_gnutls_api}" = "xyes" ; then
+   AC_DEFINE(EET_USE_NEW_GNUTLS_API, 1, [use gnutls_x509_crt_verify_hash])
+else
+   AC_DEFINE(EET_USE_NEW_GNUTLS_API, 0, [don't use gnutls_x509_crt_verify_hash])
+fi
 
 # Openssl support
 
@@ -169,6 +191,7 @@ if test "x${want_gnutls}" = "xyes" -o "x${want_gnutls}" = "xauto" ; then
    PKG_CHECK_MODULES(GNUTLS, [gnutls >= 1.7.6],
       [
        have_gnutls="yes"
+       want_openssl="no"
        AC_DEFINE(HAVE_GNUTLS, 1, [Have Gnutls support])
        requirement_eet="gnutls ${requirement_eet}"
       ],
@@ -287,6 +310,8 @@ AC_SUBST(EET_CFLAGS)
 
 ### Checks for linker characteristics
 
+# use --enable-auto-import on Windows
+
 lt_enable_auto_import=""
 case "$host_os" in
    mingw* | cegcc*)
@@ -294,6 +319,20 @@ case "$host_os" in
       ;;
 esac
 AC_SUBST(lt_enable_auto_import)
+
+# use --as-needed if supported
+
+LDFLAGS_SAVE=${LDFLAGS}
+LDFLAGS="${LDFLAGS} -Wl,--as-needed"
+
+AC_LINK_IFELSE(
+   [AC_LANG_PROGRAM([[]], [])],
+   [ld_as_needed="-Wl,--as-needed"],
+   [ld_as_needed=""]
+)
+
+LDFLAGS=${LDFLAGS_SAVE}
+AC_SUBST(ld_as_needed)
 
 
 ### Checks for library functions
@@ -349,7 +388,7 @@ echo "  Openssl..............: ${have_openssl}"
 echo "    Cipher support.....: ${have_cipher}"
 echo "    Signature..........: ${have_signature}"
 echo
-echo "  Documentation........: ${enable_doc}"
+echo "  Documentation........: ${build_doc}"
 echo "  Tests................: ${enable_tests}"
 echo "  Coverage.............: ${enable_coverage}"
 echo

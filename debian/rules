@@ -4,12 +4,12 @@ include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/autotools.mk
 
 CFLAGS += -fvisibility=hidden
+LDFLAGS += -fvisibility=hidden
 
-DEB_INSTALL_MANPAGES_libeet-doc := $(DEB_SRCDIR)/doc/man/man3/E*.3 $(DEB_SRCDIR)/doc/man/man3/e*.3
-DEB_INSTALL_MANPAGES_libeet-bin := $(DEB_SRCDIR)/debian/eet.1
 DEB_DH_STRIP_ARGS := --dbg-package=libeet-dbg
 DEB_CONFIGURE_EXTRA_FLAGS := --disable-rpath --host=$(DEB_HOST_GNU_TYPE)
-DEB_MAKE_CLEAN_TARGET := clean
+DEB_CONFIGURE_SCRIPT := ./autogen.sh
+DEB_MAKE_CLEAN_TARGET := distclean
 
 clean::
-	./autogen.sh --prefix=/usr $(DEB_CONFIGURE_EXTRA_FLAGS)
+	[ ! -f Makefile ] || make distclean

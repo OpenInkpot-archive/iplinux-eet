@@ -6,8 +6,11 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <sys/mman.h>
+
+#ifndef _MSC_VER
+# include <unistd.h>
+#endif
 
 #ifdef HAVE_NETINET_IN_H
 # include <netinet/in.h>
@@ -30,6 +33,10 @@
 # endif
 #endif
 
+#ifdef HAVE_OPENSSL
+#  include <openssl/sha.h>
+#endif
+
 #ifdef HAVE_CIPHER
 # ifdef HAVE_GNUTLS
 #  include <gnutls/x509.h>
@@ -39,10 +46,6 @@
 #  include <openssl/hmac.h>
 #  include <openssl/rand.h>
 # endif
-#endif
-
-#ifdef HAVE_NETINET_IN_H
-# include <netinet/in.h>
 #endif
 
 #include "Eet.h"
@@ -96,6 +99,8 @@ eet_identity_open(const char *certificate_file, const char *private_key_file, Ee
 
   /* Init */
   if (!(key = malloc(sizeof(Eet_Key)))) goto on_error;
+  key->references = 1;
+
   if (gnutls_x509_crt_init(&(key->certificate))) goto on_error;
   if (gnutls_x509_privkey_init(&(key->private_key))) goto on_error;
 
@@ -337,6 +342,37 @@ eet_identity_unref(Eet_Key *key)
    eet_identity_close(key);
 }
 
+void *
+eet_identity_compute_sha1(const void *data_base, unsigned int data_length,
+			  int *sha1_length)
+{
+   void *result;
+
+#ifdef HAVE_SIGNATURE
+#  ifdef HAVE_GNUTLS
+   result = malloc(gcry_md_get_algo_dlen(GCRY_MD_SHA1));
+   if (!result) return NULL;
+
+   gcry_md_hash_buffer(GCRY_MD_SHA1, result, data_base, data_length);
+   if (sha1_length) *sha1_length = gcry_md_get_algo_dlen(GCRY_MD_SHA1);
+#  else
+#   ifdef HAVE_OPENSSL
+   result = malloc(SHA_DIGEST_LENGTH);
+   if (!result) return NULL;
+
+   SHA1(data_base, data_length, result);
+   if (sha1_length) *sha1_length = SHA_DIGEST_LENGTH;
+#   else
+   result = NULL;
+#   endif
+#  endif
+#else
+   result = NULL;
+#endif
+
+   return result;
+}
+
 Eet_Error
 eet_identity_sign(FILE *fp, Eet_Key *key)
 {
@@ -474,6 +510,7 @@ eet_identity_sign(FILE *fp, Eet_Key *key)
 
 const void*
 eet_identity_check(const void *data_base, unsigned int data_length,
+		   void **sha1, int *sha1_length,
 		   const void *signature_base, unsigned int signature_length,
 		   const void **raw_signature_base, unsigned int *raw_signature_length,
 		   int *x509_length)
@@ -504,8 +541,11 @@ eet_identity_check(const void *data_base, unsigned int data_length,
 
 # ifdef HAVE_GNUTLS
    gnutls_x509_crt_t cert;
+   gcry_md_hd_t md;
    gnutls_datum_t datum;
    gnutls_datum_t signature;
+   unsigned char *hash;
+   int err;
 
    /* Create an understanding certificate structure for gnutls */
    datum.data = (void *)cert_der;
@@ -513,13 +553,65 @@ eet_identity_check(const void *data_base, unsigned int data_length,
    gnutls_x509_crt_init(&cert);
    gnutls_x509_crt_import(cert, &datum, GNUTLS_X509_FMT_DER);
 
-   /* Verify the signature */
-   datum.data = (void *)data_base;
-   datum.size = data_length;
    signature.data = (void *)sign;
    signature.size = sign_len;
+
+   /* Verify the signature */
+#  if EET_USE_NEW_GNUTLS_API
+   /*
+     I am waiting for my patch being accepted in GnuTLS release.
+     But we now have a way to prevent double computation of SHA1.
+    */
+   err = gcry_md_open (&md, GCRY_MD_SHA1, 0);
+   if (err < 0) return NULL;
+
+   gcry_md_write(md, data_base, data_length);
+
+   hash = gcry_md_read(md, GCRY_MD_SHA1);
+   if (hash == NULL)
+     {
+	gcry_md_close(md);
+	return NULL;
+     }
+
+   datum.size = gcry_md_get_algo_dlen(GCRY_MD_SHA1);
+   datum.data = hash;
+
+   if (!gnutls_x509_crt_verify_hash(cert, 0, &datum, &signature))
+     {
+	gcry_md_close(md);
+	return NULL;
+     }
+
+   if (sha1)
+     {
+	*sha1 = malloc(datum.size);
+	if (!*sha1)
+	  {
+	     gcry_md_close(md);
+	     return NULL;
+	  }
+
+	memcpy(*sha1, hash, datum.size);
+	*sha1_length = datum.size;
+     }
+
+   gcry_md_close(md);
+#  else
+   datum.data = (void *)data_base;
+   datum.size = data_length;
+
    if (!gnutls_x509_crt_verify_data(cert, 0, &datum, &signature))
      return NULL;
+
+   if (sha1)
+     {
+	*sha1 = NULL;
+	*sha1_length = -1;
+     }
+#  endif
+  gnutls_x509_crt_deinit(cert);
+
 # else
    const unsigned char *tmp;
    EVP_PKEY *pkey;
@@ -548,6 +640,12 @@ eet_identity_check(const void *data_base, unsigned int data_length,
 
    X509_free(x509);
    EVP_PKEY_free(pkey);
+
+   if (sha1)
+     {
+	*sha1 = NULL;
+	*sha1_length = -1;
+     }
 
    if (err != 1)
      return NULL;
@@ -668,7 +766,7 @@ eet_cipher(const void *data, unsigned int size, const char *key, unsigned int le
    err = gcry_cipher_open(&cipher, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CBC, 0);
    if (err) goto on_error;
    opened = 1;
-   err = gcry_cipher_setiv(cipher, &iv, MAX_IV_LEN);
+   err = gcry_cipher_setiv(cipher, iv, MAX_IV_LEN);
    if (err) goto on_error;
    err = gcry_cipher_setkey(cipher, ik, MAX_KEY_LEN);
    if (err) goto on_error;
@@ -772,7 +870,7 @@ eet_decipher(const void *data, unsigned int size, const char *key, unsigned int 
    /* Gcrypt create the corresponding cipher */
    err = gcry_cipher_open(&cipher, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CBC, 0);
    if (err) return EET_ERROR_DECRYPT_FAILED;
-   err = gcry_cipher_setiv(cipher, &iv, MAX_IV_LEN);
+   err = gcry_cipher_setiv(cipher, iv, MAX_IV_LEN);
    if (err) goto on_error;
    err = gcry_cipher_setkey(cipher, ik, MAX_KEY_LEN);
    if (err) goto on_error;
@@ -905,7 +1003,7 @@ eet_pbkdf2_sha1(const char          *key,
   HMAC_CTX              hctx;
 # endif
 
-  buf = malloc(salt_len + 4);
+  buf = alloca(salt_len + 4);
   if (!buf) return 1;
 
   for (i = 1; len; len -= tmp_len, p += tmp_len, i++)

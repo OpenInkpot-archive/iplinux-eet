@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <Eina.h>
 
 #ifdef EAPI
 # undef EAPI
@@ -104,6 +105,7 @@ extern "C" {
    typedef struct _Eet_Dictionary            Eet_Dictionary;
    typedef struct _Eet_Data_Descriptor       Eet_Data_Descriptor;
    typedef struct _Eet_Key                   Eet_Key;
+   typedef struct _Eet_Node                  Eet_Node;
 
    typedef struct _Eet_Data_Descriptor_Class Eet_Data_Descriptor_Class;
 
@@ -185,6 +187,7 @@ extern "C" {
     * @code
     * #include <Eet.h>
     * #include <stdio.h>
+    * #include <string.h>
     *
     * int
     * main(int argc, char **argv)
@@ -192,6 +195,8 @@ extern "C" {
     *   Eet_File *ef;
     *   char buf[1024], *ret, **list;
     *   int size, num, i;
+    *
+    *   eet_init();
     *
     *   strcpy(buf, "Here is a string of data to save!");
     *
@@ -217,6 +222,8 @@ extern "C" {
     *       free(ret);
     *     }
     *   eet_close(ef);
+    *
+    *   eet_shutdown();
     *
     *   return 0;
     * }
@@ -312,6 +319,14 @@ extern "C" {
      * if the file is not signed.
      */
    EAPI const void *eet_identity_signature(Eet_File *ef, int *signature_length);
+
+    /**
+     * Get the SHA1 associated with a file. Could be the one used to sign the data
+     * or if the data where not signed, it will be the SHA1 of the file.
+     *
+     * @since 2.0.0
+     */
+   EAPI const void *eet_identity_sha1(Eet_File *ef, int *sha1_length);
 
    /**
     * Display the x509 der certificate to out.
@@ -864,6 +879,8 @@ extern "C" {
     *    FILE *f;
     *    Blah *blah_in;
     *
+    *    eet_init();
+    *
     *    edd3 = eet_data_descriptor_new("blah3", sizeof(Blah3),
     *                                   eina_list_next,
     *                                   eina_list_append,
@@ -949,6 +966,8 @@ extern "C" {
     *    eet_data_descriptor_free(edd);
     *    eet_data_descriptor_free(edd2);
     *    eet_data_descriptor_free(edd3);
+    *
+    *    eet_shutdown();
     *
     *   return 0;
     * }
@@ -1347,6 +1366,33 @@ eet_dictionary_string_check    * example: values), and @p type is the basic data
      }
 
 /***************************************************************************/
+
+   EAPI Eet_Node *eet_node_char_new(const char *name, char c);
+   EAPI Eet_Node *eet_node_short_new(const char *name, short s);
+   EAPI Eet_Node *eet_node_int_new(const char *name, int i);
+   EAPI Eet_Node *eet_node_long_long_new(const char *name, long long l);
+   EAPI Eet_Node *eet_node_float_new(const char *name, float f);
+   EAPI Eet_Node *eet_node_double_new(const char *name, double d);
+   EAPI Eet_Node *eet_node_unsigned_char_new(const char *name, unsigned char uc);
+   EAPI Eet_Node *eet_node_unsigned_short_new(const char *name, unsigned short us);
+   EAPI Eet_Node *eet_node_unsigned_int_new(const char *name, unsigned int ui);
+   EAPI Eet_Node *eet_node_unsigned_long_long_new(const char *name, unsigned long long l);
+   EAPI Eet_Node *eet_node_string_new(const char *name, const char *str);
+   EAPI Eet_Node *eet_node_inlined_string_new(const char *name, const char *str);
+   EAPI Eet_Node *eet_node_null_new(const char *name);
+   EAPI Eet_Node *eet_node_list_new(const char *name, Eina_List *nodes);
+   EAPI Eet_Node *eet_node_array_new(const char *name, int count, Eina_List *nodes);
+   EAPI Eet_Node *eet_node_var_array_new(const char *name, Eina_List *nodes);
+   EAPI Eet_Node *eet_node_hash_new(const char *name, const char *key, Eet_Node *node);
+   EAPI Eet_Node *eet_node_struct_new(const char *name, Eina_List *nodes);
+   EAPI Eet_Node *eet_node_struct_child_new(const char *parent, Eet_Node *child);
+   EAPI void eet_node_del(Eet_Node *n);
+
+   EAPI void *eet_data_node_encode_cipher(Eet_Node *node, const char *key, int *size_ret);
+   EAPI int eet_data_node_write_cipher(Eet_File *ef, const char *name, const char *key, Eet_Node *node, int compress);
+
+/***************************************************************************/
+
 #ifdef __cplusplus
 }
 #endif

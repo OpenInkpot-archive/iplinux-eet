@@ -6,6 +6,10 @@
 # include <config.h>
 #endif
 
+#if defined(_WIN32) && ! defined(__CEGCC__)
+# include <winsock2.h>
+#endif
+
 #ifdef HAVE_ALLOCA_H
 # include <alloca.h>
 #elif defined __GNUC__
@@ -32,8 +36,11 @@ void *alloca (size_t);
 #include <string.h>
 #include <fnmatch.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <zlib.h>
+
+#ifndef _MSC_VER
+# include <unistd.h>
+#endif
 
 #ifdef HAVE_OPENSSL
 #include <openssl/err.h>
@@ -41,10 +48,6 @@ void *alloca (size_t);
 
 #ifdef HAVE_NETINET_IN_H
 # include <netinet/in.h>
-#endif
-
-#if defined(_WIN32) && ! defined(__CEGCC__)
-# include <winsock2.h>
 #endif
 
 #ifdef HAVE_EVIL
@@ -90,6 +93,7 @@ struct _Eet_File
    const unsigned char  *data;
    const void           *x509_der;
    const void           *signature;
+   void                 *sha1;
 
    Eet_File_Mode         mode;
 
@@ -99,6 +103,7 @@ struct _Eet_File
    int                   data_size;
    int                   x509_length;
    unsigned int          signature_length;
+   int                   sha1_length;
 
    time_t                mtime;
 
@@ -552,6 +557,14 @@ eet_flush2(Eet_File *ef)
 
    /* flush all write to the file. */
    fflush(ef->fp);
+// this is going to really cause trouble. if ANYTHING this needs to go into a
+// thread spawned off - but even then...
+// in this case... ext4 is "wrong". (yes we can jump up and down and point posix
+// manual pages at eachother, but ext4 broke behavior that has been in place
+// for decades and that 1000's of apps rely on daily - that is that one operation
+// to disk is committed to disk BEFORE following operations, so the fs retains
+// a consistent state
+//   fsync(fileno(ef->fp));
 
    /* append signature if required */
    if (ef->key)
@@ -718,28 +731,25 @@ eet_init(void)
    if (eet_initcount > 1) return eet_initcount;
 
 #ifdef HAVE_GNUTLS
+   /* Before the library can be used, it must initialize itself if needed. */
+   if (gcry_control (GCRYCTL_ANY_INITIALIZATION_P) == 0)
+     {
+	gcry_check_version(NULL);
+	/* Disable warning messages about problems with the secure memory subsystem.
+	   This command should be run right after gcry_check_version. */
+	if (gcry_control(GCRYCTL_DISABLE_SECMEM_WARN))
+	  return --eet_initcount;
+	/* This command is used to allocate a pool of secure memory and thus
+	   enabling the use of secure memory. It also drops all extra privileges the
+	   process has (i.e. if it is run as setuid (root)). If the argument nbytes
+	   is 0, secure memory will be disabled. The minimum amount of secure memory
+	   allocated is currently 16384 bytes; you may thus use a value of 1 to
+	   request that default size. */
+	if (gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0))
+	  fprintf(stderr, "BIG FAT WARNING: I AM UNABLE TO REQUEST SECMEM, Cryptographic operation are at risk !");
+     }
    if (gnutls_global_init())
      return --eet_initcount;
-   /* Before the library can be used, it must initialize itself. */
-   gcry_check_version(NULL);
-   /* Disable warning messages about problems with the secure memory subsystem.
-      This command should be run right after gcry_check_version. */
-   if (gcry_control(GCRYCTL_DISABLE_SECMEM_WARN))
-     {
-       gnutls_global_deinit();
-       return --eet_initcount;
-     }
-   /* This command is used to allocate a pool of secure memory and thus
-      enabling the use of secure memory. It also drops all extra privileges the
-      process has (i.e. if it is run as setuid (root)). If the argument nbytes
-      is 0, secure memory will be disabled. The minimum amount of secure memory
-      allocated is currently 16384 bytes; you may thus use a value of 1 to
-      request that default size. */
-   if (gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0))
-     {
-       gnutls_global_deinit();
-       return --eet_initcount;
-     }
 #endif
 #ifdef HAVE_OPENSSL
    ERR_load_crypto_strings();
@@ -1033,6 +1043,7 @@ eet_internal_read2(Eet_File *ef)
 #ifdef HAVE_SIGNATURE
 	const unsigned char *buffer = ((const unsigned char*) ef->data) + signature_base_offset;
 	ef->x509_der = eet_identity_check(ef->data, signature_base_offset,
+					  &ef->sha1, &ef->sha1_length,
 					  buffer, ef->data_size - signature_base_offset,
 					  &ef->signature, &ef->signature_length,
 					  &ef->x509_length);
@@ -1266,6 +1277,8 @@ eet_memopen_read(const void *data, size_t size)
    ef->readfp = NULL;
    ef->data = data;
    ef->data_size = size;
+   ef->sha1 = NULL;
+   ef->sha1_length = 0;
 
    return eet_internal_read(ef);
 }
@@ -1382,6 +1395,8 @@ eet_open(const char *file, Eet_File_Mode mode)
    ef->delete_me_now = 0;
    ef->data = NULL;
    ef->data_size = 0;
+   ef->sha1 = NULL;
+   ef->sha1_length = 0;
 
    ef->ed = (mode == EET_FILE_MODE_WRITE)
      || (ef->fp == NULL && mode == EET_FILE_MODE_READ_WRITE) ?
@@ -1454,6 +1469,16 @@ eet_identity_signature(Eet_File *ef, int *signature_length)
 
    if (signature_length) *signature_length = ef->signature_length;
    return ef->signature;
+}
+
+EAPI const void *
+eet_identity_sha1(Eet_File *ef, int *sha1_length)
+{
+   if (!ef->sha1)
+     ef->sha1 = eet_identity_compute_sha1(ef->data, ef->data_size, &ef->sha1_length);
+
+   if (sha1_length) *sha1_length = ef->sha1_length;
+   return ef->sha1;
 }
 
 EAPI Eet_Error
@@ -1537,6 +1562,7 @@ eet_close(Eet_File *ef)
 
    eet_dictionary_free(ef->ed);
 
+   if (ef->sha1) free(ef->sha1);
    if (ef->data) munmap((void*)ef->data, ef->data_size);
    if (ef->fp) fclose(ef->fp);
    if (ef->readfp) fclose(ef->readfp);

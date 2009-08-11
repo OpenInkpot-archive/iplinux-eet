@@ -24,6 +24,9 @@ void *alloca (size_t);
 #endif
 
 #ifdef HAVE_NETINET_IN_H
+# ifdef __OpenBSD__
+#  include <sys/types.h>
+# endif
 # include <netinet/in.h>
 #endif
 
@@ -255,7 +258,7 @@ _JPEGFatalErrorHandler(j_common_ptr cinfo)
 }
 
 static void
-_JPEGErrorHandler(j_common_ptr cinfo)
+_JPEGErrorHandler(j_common_ptr cinfo __UNUSED__)
 {
    /*   emptr errmgr; */
 
@@ -266,7 +269,7 @@ _JPEGErrorHandler(j_common_ptr cinfo)
 }
 
 static void
-_JPEGErrorHandler2(j_common_ptr cinfo, int msg_level)
+_JPEGErrorHandler2(j_common_ptr cinfo __UNUSED__, int msg_level __UNUSED__)
 {
    /*   emptr errmgr; */
 
@@ -274,7 +277,6 @@ _JPEGErrorHandler2(j_common_ptr cinfo, int msg_level)
    /*   cinfo->err->output_message(cinfo);*/
    /*   longjmp(errmgr->setjmp_buffer, 1);*/
    return;
-   msg_level = 0;
 }
 
 static int

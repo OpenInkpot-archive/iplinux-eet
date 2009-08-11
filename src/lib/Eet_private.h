@@ -5,13 +5,6 @@
 #ifndef _EET_PRIVATE_H
 #define _EET_PRIVATE_H
 
-#ifdef __GNUC__
-# if __GNUC__ >= 4
-// BROKEN in gcc 4 on amd64
-//#  pragma GCC visibility push(hidden)
-# endif
-#endif
-
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
@@ -57,6 +50,30 @@ struct _Eet_Dictionary
   const char   *end;
 };
 
+struct _Eet_Node
+{
+   int         type;
+   int         count;
+   const char *name;
+   const char *key;
+   Eet_Node   *values;
+   Eet_Node   *next;
+   Eet_Node   *parent;
+   union {
+      char                c;
+      short               s;
+      int                 i;
+      long long           l;
+      float               f;
+      double              d;
+      unsigned char       uc;
+      unsigned short      us;
+      unsigned int        ui;
+      unsigned long long  ul;
+      const char         *str;
+   } data;
+};
+
 Eet_Dictionary  *eet_dictionary_add(void);
 void             eet_dictionary_free(Eet_Dictionary *ed);
 int              eet_dictionary_string_add(Eet_Dictionary *ed, const char *string);
@@ -69,9 +86,12 @@ int              eet_dictionary_string_get_hash(const Eet_Dictionary *ed, int in
 int   _eet_hash_gen(const char *key, int hash_size);
 
 const void* eet_identity_check(const void *data_base, unsigned int data_length,
+			       void **sha1, int *sha1_length,
 			       const void *signature_base, unsigned int signature_length,
 			       const void **raw_signature_base, unsigned int *raw_signature_length,
 			       int *x509_length);
+void *eet_identity_compute_sha1(const void *data_base, unsigned int data_length,
+				int *sha1_length);
 Eet_Error eet_cipher(const void *data, unsigned int size, const char *key, unsigned int length, void **result, unsigned int *result_length);
 Eet_Error eet_decipher(const void *data, unsigned int size, const char *key, unsigned int length, void **result, unsigned int *result_length);
 Eet_Error eet_identity_sign(FILE *fp, Eet_Key *key);
