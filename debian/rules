@@ -8,6 +8,7 @@ LDFLAGS += -fvisibility=hidden
 
 DEB_DH_STRIP_ARGS := --dbg-package=libeet-dbg
 DEB_CONFIGURE_EXTRA_FLAGS := --disable-rpath \
+	--enable-amalgamation \
 	--disable-old-eet-file-format \
 	--disable-gnutls \
 	--disable-openssl \
