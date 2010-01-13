@@ -42,10 +42,6 @@ void *alloca (size_t);
 # include <unistd.h>
 #endif
 
-#ifdef HAVE_OPENSSL
-#include <openssl/err.h>
-#endif
-
 #ifdef HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
@@ -70,7 +66,7 @@ void *alloca (size_t);
 #include "Eet_private.h"
 
 #ifdef HAVE_REALPATH
-#undef HAVE_REALPATH
+# undef HAVE_REALPATH
 #endif
 
 #define EET_MAGIC_FILE                  0x1ee7ff00
@@ -221,7 +217,10 @@ static Eet_File **eet_writers         = NULL;
 static int        eet_readers_num     = 0;
 static int        eet_readers_alloc   = 0;
 static Eet_File **eet_readers         = NULL;
-static int        eet_initcount       = 0;
+static int        eet_init_count       = 0;
+
+/* log domain variable */
+int _eet_log_dom_global = -1;
 
 /* Check to see its' an eet file pointer */
 static inline int
@@ -315,7 +314,7 @@ eet_cache_add(Eet_File *ef, Eet_File ***cache, int *cache_num, int *cache_alloc)
 	new_cache = realloc(new_cache, new_cache_alloc * sizeof(Eet_File *));
 	if (!new_cache)
 	  {
-	     fprintf(stderr, "BAD ERROR! Eet realloc of cache list failed. Abort\n");
+	     CRIT("BAD ERROR! Eet realloc of cache list failed. Abort");
 	     abort();
 	  }
      }
@@ -360,7 +359,7 @@ eet_cache_del(Eet_File *ef, Eet_File ***cache, int *cache_num, int *cache_alloc)
 	     new_cache = realloc(new_cache, new_cache_alloc * sizeof(Eet_File *));
 	     if (!new_cache)
 	       {
-		  fprintf(stderr, "BAD ERROR! Eet realloc of cache list failed. Abort\n");
+		  CRIT("BAD ERROR! Eet realloc of cache list failed. Abort");
 		  abort();
 	       }
 	  }
@@ -726,9 +725,20 @@ eet_flush(Eet_File *ef)
 EAPI int
 eet_init(void)
 {
-   eet_initcount++;
+   if (++eet_init_count != 1)
+     return eet_init_count;
 
-   if (eet_initcount > 1) return eet_initcount;
+   if (!eina_init())
+     {
+	fprintf(stderr, "Eet: Eina init failed");
+	return --eet_init_count;
+     }
+   _eet_log_dom_global = eina_log_domain_register("Eet", EET_DEFAULT_LOG_COLOR);
+   if (_eet_log_dom_global < 0)
+     {
+	EINA_LOG_ERR("Eet Can not create a general log domain.");
+	goto shutdown_eina;
+     }
 
 #ifdef HAVE_GNUTLS
    /* Before the library can be used, it must initialize itself if needed. */
@@ -738,7 +748,7 @@ eet_init(void)
 	/* Disable warning messages about problems with the secure memory subsystem.
 	   This command should be run right after gcry_check_version. */
 	if (gcry_control(GCRYCTL_DISABLE_SECMEM_WARN))
-	  return --eet_initcount;
+	  goto unregister_log_domain;
 	/* This command is used to allocate a pool of secure memory and thus
 	   enabling the use of secure memory. It also drops all extra privileges the
 	   process has (i.e. if it is run as setuid (root)). If the argument nbytes
@@ -746,27 +756,31 @@ eet_init(void)
 	   allocated is currently 16384 bytes; you may thus use a value of 1 to
 	   request that default size. */
 	if (gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0))
-	  fprintf(stderr, "BIG FAT WARNING: I AM UNABLE TO REQUEST SECMEM, Cryptographic operation are at risk !");
+	  WRN("BIG FAT WARNING: I AM UNABLE TO REQUEST SECMEM, Cryptographic operation are at risk !");
      }
    if (gnutls_global_init())
-     return --eet_initcount;
+     goto unregister_log_domain;
 #endif
 #ifdef HAVE_OPENSSL
    ERR_load_crypto_strings();
    OpenSSL_add_all_algorithms();
 #endif
 
-   eina_init();
+   return eet_init_count;
 
-   return eet_initcount;
+ unregister_log_domain:
+   eina_log_domain_unregister(_eet_log_dom_global);
+   _eet_log_dom_global = -1;
+ shutdown_eina:
+   eina_shutdown();
+   return --eet_init_count;
 }
 
 EAPI int
 eet_shutdown(void)
 {
-   eet_initcount--;
-
-   if (eet_initcount > 0) return eet_initcount;
+   if (--eet_init_count != 0)
+     return eet_init_count;
 
    eet_clearcache();
 #ifdef HAVE_GNUTLS
@@ -776,10 +790,11 @@ eet_shutdown(void)
    EVP_cleanup();
    ERR_free_strings();
 #endif
-
+   eina_log_domain_unregister(_eet_log_dom_global);
+   _eet_log_dom_global = -1;
    eina_shutdown();
 
-   return eet_initcount;
+   return eet_init_count;
 }
 
 EAPI void
@@ -1050,7 +1065,7 @@ eet_internal_read2(Eet_File *ef)
 
 	if (eet_test_close(ef->x509_der == NULL, ef)) return NULL;
 #else
-	fprintf(stderr, "This file could be signed but you didn't compile the necessary code to check the signature.\n");
+	ERR("This file could be signed but you didn't compile the necessary code to check the signature.");
 #endif
      }
 
@@ -1068,7 +1083,7 @@ eet_internal_read1(Eet_File *ef)
    int			 byte_entries;
    int			 i;
 
-   fprintf(stderr, "EET file format of '%s' is deprecated. You should just open it one time with mode == EET_FILE_MODE_READ_WRITE to solve this issue.\n", ef->path);
+   WRN("EET file format of '%s' is deprecated. You should just open it one time with mode == EET_FILE_MODE_READ_WRITE to solve this issue.", ef->path);
 
    /* build header table if read mode */
    /* geat header */
@@ -1195,7 +1210,7 @@ eet_internal_read1(Eet_File *ef)
 	     strncpy(efn->name, (char *)p + HEADER_SIZE, name_size);
 	     efn->name[name_size] = 0;
 
-	     printf("File: %s is not up to date for key \"%s\" - needs rebuilding sometime\n", ef->path, efn->name);
+	     WRN("File: %s is not up to date for key \"%s\" - needs rebuilding sometime", ef->path, efn->name);
 	  }
 	else
 	  /* The only really usefull peace of code for efn->name (no backward compatibility) */
@@ -1324,6 +1339,9 @@ eet_open(const char *file, Eet_File_Mode mode)
     /* try open the file based on mode */
    if ((mode == EET_FILE_MODE_READ) || (mode == EET_FILE_MODE_READ_WRITE))
      {
+	/* Prevent garbage in futur comparison. */
+	file_stat.st_mtime = 0;
+
 	fp = fopen(file, "rb");
 	if (!fp) goto on_error;
 	if (fstat(fileno(fp), &file_stat))

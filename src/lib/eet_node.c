@@ -1,4 +1,13 @@
+/*
+ * vim:ts=8:sw=3:sts=8:noexpandtab:cino=>5n-3f0^-2{2
+ */
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+
 #include <stdio.h>
+
 #include <Eina.h>
 
 #include "Eet.h"
@@ -306,6 +315,10 @@ eet_node_dump_simple_type(Eet_Node *n, int level,
    dumpfunc(dumpdata, "  value \"");
    eet_node_dump_string_escape(dumpdata, dumpfunc, n->name);
    dumpfunc(dumpdata, "\" ");
+
+#ifdef EET_T_TYPE
+# undef EET_T_TYPE
+#endif
 
 #define EET_T_TYPE(Eet_Type, Type)					\
    case Eet_Type:							\

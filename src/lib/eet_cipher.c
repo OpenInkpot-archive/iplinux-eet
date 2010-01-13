@@ -2,6 +2,23 @@
 # include <config.h>
 #endif
 
+#ifdef HAVE_ALLOCA_H
+# include <alloca.h>
+#elif defined __GNUC__
+# define alloca __builtin_alloca
+#elif defined _AIX
+# define alloca __alloca
+#elif defined _MSC_VER
+# include <malloc.h>
+# define alloca _alloca
+#else
+# include <stddef.h>
+# ifdef  __cplusplus
+extern "C"
+# endif
+void *alloca (size_t);
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -282,7 +299,7 @@ eet_identity_print(Eet_Key *key, FILE *out)
     {
       fprintf(out, "Public certificate:\n");
       if (gnutls_x509_crt_print(key->certificate, GNUTLS_X509_CRT_FULL, &data)) goto on_error;
-      fprintf(out, "%s", data.data);
+      fprintf(out, "%s\n", data.data);
       gnutls_free(data.data);
       data.data = NULL;
     }
@@ -323,7 +340,7 @@ eet_identity_print(Eet_Key *key, FILE *out)
   X509_print_fp(out, key->certificate);
 # endif
 #else
-  fprintf(out, "You need to compile signature support in EET.\n");
+  ERR("You need to compile signature support in EET.");
 #endif
 }
 
@@ -665,7 +682,7 @@ eet_identity_certificate_print(const unsigned char *certificate, int der_length,
 #ifdef HAVE_SIGNATURE
   if (!certificate || !out || der_length <= 0)
      {
-	fprintf(out, "No certificate provided.\n");
+	ERR("No certificate provided.");
 	return ;
      }
 # ifdef HAVE_GNUTLS
@@ -682,8 +699,8 @@ eet_identity_certificate_print(const unsigned char *certificate, int der_length,
   datum.data = NULL;
   datum.size = 0;
   if (gnutls_x509_crt_print(cert, GNUTLS_X509_CRT_FULL, &datum)) goto on_error;
-  fprintf(out, "Public certificate :\n");
-  fprintf(out, "%s", datum.data);
+  INF("Public certificate :");
+  INF("%s", datum.data);
 
  on_error:
   if (datum.data) gnutls_free(datum.data);
@@ -698,17 +715,17 @@ eet_identity_certificate_print(const unsigned char *certificate, int der_length,
    x509 = d2i_X509(NULL, &tmp, der_length);
    if (x509 == NULL)
      {
-	fprintf(out, "Not a valid certificate.\n");
+	INF("Not a valid certificate.");
 	return ;
      }
 
-   fprintf(out, "Public certificate :\n");
+   INF("Public certificate :");
    X509_print_fp(out, x509);
 
    X509_free(x509);
 # endif
 #else
-   fprintf(out, "You need to compile signature support in EET.\n");
+   ERR("You need to compile signature support in EET.");
 #endif
 }
 

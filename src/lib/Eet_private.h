@@ -5,9 +5,17 @@
 #ifndef _EET_PRIVATE_H
 #define _EET_PRIVATE_H
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
+#include <Eina.h>
+
+typedef enum _Eet_Convert_Type Eet_Convert_Type;
+
+enum _Eet_Convert_Type
+{
+  EET_D_NOT_CONVERTED,
+  EET_D_FLOAT,
+  EET_D_DOUBLE,
+  EET_D_FIXED_POINT
+};
 
 typedef struct _Eet_String              Eet_String;
 
@@ -26,13 +34,10 @@ struct _Eet_String
   {
     float                f;
     double               d;
+    Eina_F32p32		 fp;
   } convert;
 
-  struct
-  {
-    unsigned int         converted : 1;
-    unsigned int         is_float : 1;
-  } flags;
+  Eet_Convert_Type	 type;
 };
 struct _Eet_Dictionary
 {
@@ -74,13 +79,49 @@ struct _Eet_Node
    } data;
 };
 
+/*
+ * variable and macros used for the eina_log module
+ */
+extern int _eet_log_dom_global;
+
+/*
+ * Macros that are used everywhere
+ *
+ * the first four macros are the general macros for the lib
+ */
+#ifdef EET_DEFAULT_LOG_COLOR
+# undef EET_DEFAULT_LOG_COLOR
+#endif
+#define EET_DEFAULT_LOG_COLOR EINA_COLOR_CYAN
+#ifdef ERR
+# undef ERR
+#endif
+#define ERR(...) EINA_LOG_DOM_ERR(_eet_log_dom_global, __VA_ARGS__)
+#ifdef DBG
+# undef DBG
+#endif
+#define DBG(...) EINA_LOG_DOM_DBG(_eet_log_dom_global, __VA_ARGS__)
+#ifdef INF
+# undef INF
+#endif
+#define INF(...) EINA_LOG_DOM_INFO(_eet_log_dom_global, __VA_ARGS__)
+#ifdef WRN
+# undef WRN
+#endif
+#define WRN(...) EINA_LOG_DOM_WARN(_eet_log_dom_global, __VA_ARGS__)
+#ifdef CRIT
+# undef CRIT
+#endif
+#define CRIT(...) EINA_LOG_DOM_CRIT(_eet_log_dom_global, __VA_ARGS__)
+
 Eet_Dictionary  *eet_dictionary_add(void);
 void             eet_dictionary_free(Eet_Dictionary *ed);
 int              eet_dictionary_string_add(Eet_Dictionary *ed, const char *string);
 int              eet_dictionary_string_get_size(const Eet_Dictionary *ed, int index);
 const char      *eet_dictionary_string_get_char(const Eet_Dictionary *ed, int index);
-int              eet_dictionary_string_get_float(const Eet_Dictionary *ed, int index, float *result);
-int              eet_dictionary_string_get_double(const Eet_Dictionary *ed, int index, double *result);
+Eina_Bool        eet_dictionary_string_get_float(const Eet_Dictionary *ed, int index, float *result);
+Eina_Bool        eet_dictionary_string_get_double(const Eet_Dictionary *ed, int index, double *result);
+Eina_Bool        eet_dictionary_string_get_fp(const Eet_Dictionary *ed, int index, Eina_F32p32 *result);
 int              eet_dictionary_string_get_hash(const Eet_Dictionary *ed, int index);
 
 int   _eet_hash_gen(const char *key, int hash_size);
@@ -99,13 +140,13 @@ void eet_identity_unref(Eet_Key *key);
 void eet_identity_ref(Eet_Key *key);
 
 #ifndef PATH_MAX
-#define PATH_MAX 4096
+# define PATH_MAX 4096
 #endif
 
 #ifdef DNDEBUG
-#define EET_ASSERT(Test, Do) if (Test == 0) Do;
+# define EET_ASSERT(Test, Do) if (Test == 0) Do;
 #else
-#define EET_ASSERT(Test, Do) if (Test == 0) abort();
+# define EET_ASSERT(Test, Do) if (Test == 0) abort();
 #endif
 
 #endif

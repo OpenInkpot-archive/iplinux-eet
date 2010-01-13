@@ -59,7 +59,10 @@ extern "C" {
 #define EET_T_STRING            11 /**< Data type: char * */
 #define EET_T_INLINED_STRING    12 /**< Data type: char * (but compressed inside the resulting eet) */
 #define EET_T_NULL              13 /**< Data type: (void *) (only use it if you know why) */
-#define EET_T_LAST              14 /**< Last data type */
+#define EET_T_F32P32		14 /**< Data type:  */
+#define EET_T_F16P16		15 /**< Data type:  */
+#define EET_T_F8P24		16 /**< Data type:  */
+#define EET_T_LAST              17 /**< Last data type */
 
 #define EET_G_UNKNOWN    100 /**< Unknown group data encoding type */
 #define EET_G_ARRAY      101 /**< Fixed size array group type */
@@ -413,7 +416,7 @@ extern "C" {
     * @param data Pointer to the data to be stored.
     * @param size Length in bytes in the data to be stored.
     * @param compress Compression flags (1 == compress, 0 = don't compress).
-    * @return Success or failure of the write.
+    * @return bytes written on successful write, 0 on failure.
     *
     * This function will write the specified chunk of data to the eet file
     * and return greater than 0 on success. 0 will be returned on failure.
@@ -976,15 +979,117 @@ extern "C" {
     *
     * @since 1.0.0
     */
-   EAPI Eet_Data_Descriptor *eet_data_descriptor_new(const char *name, int size, void *(*func_list_next) (void *l), void *(*func_list_append) (void *l, void *d), void *(*func_list_data) (void *l), void *(*func_list_free) (void *l), void  (*func_hash_foreach) (void *h, int (*func) (void *h, const char *k, void *dt, void *fdt), void *fdt), void *(*func_hash_add) (void *h, const char *k, void *d), void  (*func_hash_free) (void *h));
+   EINA_DEPRECATED EAPI Eet_Data_Descriptor *eet_data_descriptor_new(const char *name, int size, void *(*func_list_next) (void *l), void *(*func_list_append) (void *l, void *d), void *(*func_list_data) (void *l), void *(*func_list_free) (void *l), void  (*func_hash_foreach) (void *h, int (*func) (void *h, const char *k, void *dt, void *fdt), void *fdt), void *(*func_hash_add) (void *h, const char *k, void *d), void  (*func_hash_free) (void *h));
    /*
     * FIXME:
     *
     * moving to this api from the old above. this will break things when the
     * move happens - but be warned
     */
-   EAPI Eet_Data_Descriptor *eet_data_descriptor2_new(Eet_Data_Descriptor_Class *eddc);
-   EAPI Eet_Data_Descriptor *eet_data_descriptor3_new(Eet_Data_Descriptor_Class *eddc);
+   EINA_DEPRECATED EAPI Eet_Data_Descriptor *eet_data_descriptor2_new(const Eet_Data_Descriptor_Class *eddc);
+   EINA_DEPRECATED EAPI Eet_Data_Descriptor *eet_data_descriptor3_new(const Eet_Data_Descriptor_Class *eddc);
+
+   /**
+    * This function creates a new data descriptore and returns a handle to the
+    * new data descriptor. On creation it will be empty, containing no contents
+    * describing anything other than the shell of the data structure.
+    * @param edd The data descriptor to free.
+    *
+    * You add structure members to the data descriptor using the macros
+    * EET_DATA_DESCRIPTOR_ADD_BASIC(), EET_DATA_DESCRIPTOR_ADD_SUB() and
+    * EET_DATA_DESCRIPTOR_ADD_LIST(), depending on what type of member you are
+    * adding to the description.
+    *
+    * Once you have described all the members of a struct you want loaded, or
+    * saved eet can load and save those members for you, encode them into
+    * endian-independant serialised data chunks for transmission across a
+    * a network or more.
+    *
+    * This function specially ignore str_direct_alloc and str_direct_free. It
+    * is usefull when the eet_data you are reading don't have a dictionnary
+    * like network stream or ipc. It also mean that all string will be allocated
+    * and duplicated in memory.
+    *
+    * @since 1.3.0
+    */
+   EAPI Eet_Data_Descriptor *eet_data_descriptor_stream_new(const Eet_Data_Descriptor_Class *eddc);
+
+  /**
+    * This function creates a new data descriptore and returns a handle to the
+    * new data descriptor. On creation it will be empty, containing no contents
+    * describing anything other than the shell of the data structure.
+    * @param edd The data descriptor to free.
+    *
+    * You add structure members to the data descriptor using the macros
+    * EET_DATA_DESCRIPTOR_ADD_BASIC(), EET_DATA_DESCRIPTOR_ADD_SUB() and
+    * EET_DATA_DESCRIPTOR_ADD_LIST(), depending on what type of member you are
+    * adding to the description.
+    *
+    * Once you have described all the members of a struct you want loaded, or
+    * saved eet can load and save those members for you, encode them into
+    * endian-independant serialised data chunks for transmission across a
+    * a network or more.
+    *
+    * This function use str_direct_alloc and str_direct_free. It is usefull when
+    * the eet_data you are reading come from a file and have a dictionnary. This
+    * will reduce memory use, improve the possibility for the OS to page this
+    * string out. But be carrefull all EET_T_STRING are pointer to a mmapped area
+    * and it will point to nowhere if you close the file. So as long as you use
+    * this strings, you need to have the Eet_File open.
+    *
+    * @since 1.3.0
+    */
+   EAPI Eet_Data_Descriptor *eet_data_descriptor_file_new(const Eet_Data_Descriptor_Class *eddc);
+
+   /**
+    * This function is an helper that set all the parameter of an Eet_Data_Descriptor_Class
+    * correctly when you use Eina data type with a stream.
+    * @param class The Eet_Data_Descriptor_Class you want to set.
+    * @param name The name of the structure described by this class.
+    * @param size The size of the structure described by this class.
+    * @return EINA_TRUE if the structure was correctly set (The only reason that could make
+    * it fail is if you did give wrong parameter).
+    *
+    * @since 1.3.0
+    */
+   EAPI Eina_Bool eet_eina_stream_data_descriptor_class_set(Eet_Data_Descriptor_Class *eddc, const char *name, int size);
+
+   /**
+    * This macro is an helper that set all the parameter of an Eet_Data_Descriptor_Class
+    * correctly when you use Eina data type with stream.
+    * @param class The Eet_Data_Descriptor_Class you want to set.
+    * @param type The type of the structure described by this class.
+    * @return EINA_TRUE if the structure was correctly set (The only reason that could make
+    * it fail is if you did give wrong parameter).
+    *
+    * @since 1.3.0
+    */
+#define EET_EINA_STREAM_DATA_DESCRIPTOR_CLASS_SET(Clas, Type) (eet_eina_stream_data_descriptor_class_set(Clas, #Type , sizeof (Type)))
+
+   /**
+    * This function is an helper that set all the parameter of an Eet_Data_Descriptor_Class
+    * correctly when you use Eina data type with a file.
+    * @param class The Eet_Data_Descriptor_Class you want to set.
+    * @param name The name of the structure described by this class.
+    * @param size The size of the structure described by this class.
+    * @return EINA_TRUE if the structure was correctly set (The only reason that could make
+    * it fail is if you did give wrong parameter).
+    *
+    * @since 1.3.0
+    */
+   EAPI Eina_Bool eet_eina_file_data_descriptor_class_set(Eet_Data_Descriptor_Class *eddc, const char *name, int size);
+
+   /**
+    * This macro is an helper that set all the parameter of an Eet_Data_Descriptor_Class
+    * correctly when you use Eina data type with file.
+    * @param class The Eet_Data_Descriptor_Class you want to set.
+    * @param type The type of the structure described by this class.
+    * @return EINA_TRUE if the structure was correctly set (The only reason that could make
+    * it fail is if you did give wrong parameter).
+    *
+    * @since 1.3.0
+    */
+#define EET_EINA_FILE_DATA_DESCRIPTOR_CLASS_SET(Clas, Type) (eet_eina_file_data_descriptor_class_set(Clas, #Type , sizeof (Type)))
 
    /**
     * This function frees a data descriptor when it is not needed anymore.
@@ -1044,7 +1149,7 @@ extern "C" {
     * @param name The key to store the data under in the eet file.
     * @param data A pointer to the data structure to ssave and encode.
     * @param compress Compression flags for storage.
-    * @return 1 on successful write, 0 on failure.
+    * @return bytes written on successful write, 0 on failure.
     *
     * This function is the reverse of eet_data_read(), saving a data structure
     * to an eet file.

@@ -1,7 +1,7 @@
 # get rid of that stupid cache mechanism
 rm -f config.cache
 
-AC_INIT([eet], [1.2.2], [enlightenment-devel@lists.sourceforge.net])
+AC_INIT([eet], [1.2.3], [enlightenment-devel@lists.sourceforge.net])
 AC_PREREQ([2.52])
 AC_CONFIG_SRCDIR([configure.ac])
 AC_CONFIG_MACRO_DIR([m4])
@@ -9,8 +9,9 @@ AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
 AC_ISC_POSIX
 
-AM_INIT_AUTOMAKE(1.6 dist-bzip2)
-AM_CONFIG_HEADER(config.h)
+AM_INIT_AUTOMAKE([1.6 dist-bzip2])
+AM_CONFIG_HEADER([config.h])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 AC_LIBTOOL_WIN32_DLL
 define([AC_LIBTOOL_LANG_CXX_CONFIG], [:])dnl
@@ -49,6 +50,18 @@ requirement_eet=""
 
 
 ### Additional options to configure
+
+AC_ARG_ENABLE([amalgamation],
+   [AC_HELP_STRING([--enable-amalgamation], [enable generation of one single file with all source code in it, helps compiler optimizations.])],
+   [if test "x${enableval}" = "xyes"; then
+       do_amalgamation="yes"
+    else
+       do_amalgamation="no"
+    fi
+   ],
+   [do_amalgamation="no"]
+)
+AM_CONDITIONAL(EET_AMALGAMATION, test "x${do_amalgamation}" = "xyes")
 
 # Old eet file format support
 
@@ -146,6 +159,18 @@ AC_SUBST(DEBUG_CFLAGS)
 ### Checks for programs
 AC_PROG_CC
 
+# pkg-config
+PKG_PROG_PKG_CONFIG
+
+# Check whether pkg-config supports Requires.private
+if $PKG_CONFIG --atleast-pkgconfig-version 0.22; then
+   pkgconfig_requires_private="Requires.private"
+else
+   pkgconfig_requires_private="Requires"
+fi
+AC_SUBST(pkgconfig_requires_private)
+
+
 # doxygen program for documentation building
 
 EFL_CHECK_DOXYGEN([build_doc="yes"], [build_doc="no"])
@@ -195,9 +220,14 @@ if test "x${want_gnutls}" = "xyes" -o "x${want_gnutls}" = "xauto" ; then
        AC_DEFINE(HAVE_GNUTLS, 1, [Have Gnutls support])
        requirement_eet="gnutls ${requirement_eet}"
       ],
-      [
-       have_gnutls="no"
-      ])
+      [have_gnutls="no"])
+   if test "x${have_gnutls}" = "xyes" ; then
+      AC_PATH_GENERIC([libgcrypt], [], [have_gnutls="yes"], [have_gnutls="no"])
+      if test "x${have_gnutls}" = "xyes" ; then
+         GNUTLS_CFLAGS="${GNUTLS_CFLAGS} ${LIBGCRYPT_CFLAGS}"
+         GNUTLS_LIBS="${GNUTLS_LIBS} ${LIBGCRYPT_LIBS}"
+      fi
+   fi
 fi
 
 # Openssl library
@@ -388,6 +418,7 @@ echo "  Openssl..............: ${have_openssl}"
 echo "    Cipher support.....: ${have_cipher}"
 echo "    Signature..........: ${have_signature}"
 echo
+echo "  Amalgamation.........: ${do_amalgamation}"
 echo "  Documentation........: ${build_doc}"
 echo "  Tests................: ${enable_tests}"
 echo "  Coverage.............: ${enable_coverage}"
