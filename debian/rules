@@ -7,7 +7,14 @@ CFLAGS += -fvisibility=hidden
 LDFLAGS += -fvisibility=hidden
 
 DEB_DH_STRIP_ARGS := --dbg-package=libeet-dbg
-DEB_CONFIGURE_EXTRA_FLAGS := --disable-rpath --host=$(DEB_HOST_GNU_TYPE)
+DEB_CONFIGURE_EXTRA_FLAGS := --disable-rpath \
+	--disable-old-eet-file-format \
+	--disable-gnutls \
+	--disable-openssl \
+	--disable-cipher \
+	--disable-signature \
+	--disable-doc \
+	--host=$(DEB_HOST_GNU_TYPE)
 DEB_CONFIGURE_SCRIPT := ./autogen.sh
 DEB_MAKE_CLEAN_TARGET := distclean
 
