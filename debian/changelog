@@ -1,3 +1,9 @@
+eet (1.2.3-2) zelazny; urgency=low
+
+  * Compile eet as host/tools package too (OI#49)
+
+ -- Mikhail Gusarov <dottedmag@dottedmag.net>  Wed, 20 Jan 2010 08:56:36 +0600
+
 eet (1.2.3-1) zelazny; urgency=low
 
   * New upstream version.
