@@ -1,5 +1,5 @@
 Source: eet
-Section: core
+Section: host/tools
 Priority: optional
 Maintainer: Mikhail Gusarov <dottedmag@dottedmag.net>
 Uploaders: Alexander Kerner <lunohod@openinkpot.org>
@@ -10,6 +10,7 @@ XCS-Cross-Host-Build-Depends: debhelper (>= 6), cdbs, cdbs-embedded, automake, l
 XCS-Cross-Build-Depends: libz1-dev, libjpeg62-dev, libeina-dev (>= 0.9.9.063)
 XS-Vcs-Git: git://git.iplinux.org/eet.git
 XS-Vcs-Browser: http://git.iplinux.org/eet.git
+XCS-Cross-Mode: both
 
 Package: libeet-dev
 Section: libdevel
