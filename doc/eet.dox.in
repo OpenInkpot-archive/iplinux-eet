@@ -12,12 +12,30 @@ These routines are used for Eet Library interaction
 @image html  e_big.png
 
 @version @PACKAGE_VERSION@
-@author Carsten Haitzler <raster\@rasterman.com>
-@date 2000-2008
+@author Carsten Haitzler <raster@@rasterman.com>
+@author David Goodlad <dgoodlad@@gmail.com>
+@author Cedric Bail <cedric.bail@@free.fr>
+@author Arnaud de Turckheim <quarium@@gmail.com>
+@author Luis Felipe Strano Moraes <lfelipe@@profusion.mobi>
+@author Chidambar Zinnoury <illogict@@online.fr>
+@author Vincent Torri <vtorri@@univ-evry.fr>
+@author Gustavo Sverzut Barbieri <barbieri@@profusion.mobi>
+@author Raphael Kubo da Costa <kubo@@profusion.mobi>
+@author Mathieu Taillefumier <mathieu.taillefumier@@free.fr>
+@author Albin "Lutin" Tonnerre <albin.tonnerre@@gmail.com>
+@author Adam Simpkins <adam@@adamsimpkins.net>
 
+@date 2000-2010
 
+@section toc Table of Contents
 
-
+@li @ref intro
+@li @ref example
+@li @ref format
+@li @ref compiling
+@li @ref install
+@li @ref next_steps
+@li @ref intro_example
 
 @section intro What is Eet?
 
@@ -40,10 +58,6 @@ machines, or just writing to arbitary files on the system. All data is
 encoded in a platform independant way and can be written and read by any
 architecture.
 
-
-
-
-
 @section example A simple example on using Eet
 
 Here is a simple example on how to use Eet to save a series of strings to a
@@ -65,7 +79,7 @@ main(int argc, char **argv)
   char      buf[32];
   char     *ret;
   int       size;
-  char    **entries =
+  char     *entries[] =
     {
       "Entry 1",
       "Big text string here compared to others",
@@ -94,10 +108,6 @@ main(int argc, char **argv)
   eet_shutdown();
 }
 @endcode
-
-
-
-
 
 @section format What does an Eet file look like?
 
@@ -181,10 +191,68 @@ Please see src/lib/eet_data.c for information on the format of these
 specially encoded data entries in an Eet file (for now).
 
 
+@section compiling How to compile using Eet ?
+
+Eet is a library your application links to. The procedure for this is very
+simple. You simply have to compile your application with the appropriate
+compiler flags that the @p pkg-config script outputs. For example:
+
+Compiling C or C++ files into object files:
+
+@verbatim
+gcc -c -o main.o main.c `pkg-config --cflags eet`
+@endverbatim
+
+Linking object files into a binary executable:
+
+@verbatim
+gcc -o my_application main.o `pkg-config --libs eet`
+@endverbatim
+
+You simply have to make sure that pkg-config is in your shell's PATH (see
+the manual page for your appropriate shell) and eet.pc in /usr/lib/pkgconfig
+or its path is in the PKG_CONFIG_PATH environment variable. It's that simple
+to link and use Eet once you have written your code to use it.
+
+Since the program is linked to Eet, it is now able to use any advertised
+API calls to serialize your data.
+
+You should make sure you add any extra compile and link flags to your
+compile commands that your application may need as well. The above example
+is only guaranteed to make Eet add it's own requirements.
 
 
+@section install How is it installed?
 
-@todo Add hash table, fixed and variable array encode/decode support.
+Simple:
+
+@verbatim
+./configure
+make
+su -
+...
+make install
+@endverbatim
+
+@section next_steps Next Steps
+
+After you understood what Eet is and installed it in your system you
+should proceed understanding the programming interface. We'd recommend
+you to take a while to learn Eina
+(http://docs.enlightenment.org/auto/eina/) as it is very convenient
+and optimized, and Eet provides integration with it.
+
+Recommended reading:
+
+@li @ref Eet_File_Group to know the basics to open and save files.
+@li @ref Eet_Data_Group to know the convenient way to serialize and
+    parse your data structures automatically. Just create your
+    descriptors and let Eet do the work for you.
+
+@section intro_example Introductory Examples
+
+@ref Examples
+
 @todo Document data format for images and data structures.
 
 */

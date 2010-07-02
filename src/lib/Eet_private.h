@@ -11,10 +11,10 @@ typedef enum _Eet_Convert_Type Eet_Convert_Type;
 
 enum _Eet_Convert_Type
 {
-  EET_D_NOT_CONVERTED,
-  EET_D_FLOAT,
-  EET_D_DOUBLE,
-  EET_D_FIXED_POINT
+  EET_D_NOT_CONVERTED = 0,
+  EET_D_FLOAT = 1 << 1,
+  EET_D_DOUBLE = 1 << 2,
+  EET_D_FIXED_POINT = 1 << 4
 };
 
 typedef struct _Eet_String              Eet_String;
@@ -30,12 +30,9 @@ struct _Eet_String
   int                    next;
   int                    prev;
 
-  union
-  {
-    float                f;
-    double               d;
-    Eina_F32p32		 fp;
-  } convert;
+  float                f;
+  double               d;
+  Eina_F32p32		 fp;
 
   Eet_Convert_Type	 type;
 };
@@ -64,19 +61,7 @@ struct _Eet_Node
    Eet_Node   *values;
    Eet_Node   *next;
    Eet_Node   *parent;
-   union {
-      char                c;
-      short               s;
-      int                 i;
-      long long           l;
-      float               f;
-      double              d;
-      unsigned char       uc;
-      unsigned short      us;
-      unsigned int        ui;
-      unsigned long long  ul;
-      const char         *str;
-   } data;
+   Eet_Node_Data data;
 };
 
 /*
@@ -138,6 +123,11 @@ Eet_Error eet_decipher(const void *data, unsigned int size, const char *key, uns
 Eet_Error eet_identity_sign(FILE *fp, Eet_Key *key);
 void eet_identity_unref(Eet_Key *key);
 void eet_identity_ref(Eet_Key *key);
+
+void eet_node_shutdown(void);
+int eet_node_init(void);
+Eet_Node *eet_node_new(void);
+void eet_node_free(Eet_Node *node);
 
 #ifndef PATH_MAX
 # define PATH_MAX 4096

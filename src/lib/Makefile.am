@@ -27,7 +27,8 @@ eet_image.c \
 eet_cipher.c \
 eet_dictionary.c \
 eet_node.c \
-eet_utils.c
+eet_utils.c \
+eet_connection.c
 
 if EET_AMALGAMATION
 nodist_libeet_la_SOURCES = eet_amalgamation.c
@@ -112,7 +113,7 @@ eet_amalgamation.c: $(base_sources) Makefile
 
 	@echo "#ifdef HAVE_CIPHER" >> eet_amalgamation.c
 	@echo "# ifdef HAVE_GNUTLS" >> eet_amalgamation.c
-	@echo "#  include <gnutls/x509..h>" >> eet_amalgamation.c
+	@echo "#  include <gnutls/x509.h>" >> eet_amalgamation.c
 	@echo "#  include <gcrypt.h>" >> eet_amalgamation.c
 	@echo "# else" >> eet_amalgamation.c
 	@echo "#  include <openssl/evp.h>" >> eet_amalgamation.c
@@ -134,7 +135,7 @@ eet_amalgamation.c: $(base_sources) Makefile
 	@echo "#include \"Eet.h\"" >> eet_amalgamation.c
 
 	@for f in $(base_sources); do \
-	   if [ `expr substr $$f 1 1` != '/' ]; then \
+	   if [ `echo $$f | sed -e 's/^...\(.\).*/\1/'` != '/' ]; then \
 		  file="$(srcdir)/$$f" ; \
 	   else \
 		  file="$$f" ; \
@@ -148,9 +149,9 @@ else
 libeet_la_SOURCES = $(base_sources)
 endif
 
-libeet_la_CFLAGS = @EET_CFLAGS@ @DEBUG_CFLAGS@
+libeet_la_CFLAGS = @EET_CFLAGS@ @DEBUG_CFLAGS@ @EFL_PTHREAD_CFLAGS@
 libeet_la_LIBADD = @GNUTLS_LIBS@ @OPENSSL_LIBS@ @EFL_COVERAGE_LIBS@ @EET_LIBS@ @EINA_LIBS@ @EVIL_LIBS@ -lz -ljpeg -lm
-libeet_la_LDFLAGS = -no-undefined @lt_enable_auto_import@ -version-info @version_info@ @release_info@
+libeet_la_LDFLAGS = -no-undefined @lt_enable_auto_import@ -version-info @version_info@ @release_info@ @EFL_PTHREAD_LIBS@
 
 EXTRA_DIST = Eet_private.h
 

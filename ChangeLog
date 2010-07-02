@@ -266,3 +266,122 @@
 
         * Release eet 1.2.3
 
+2009-12-03  Cedric BAIL
+
+	* Make all operation on Eet_File thread safe.
+
+2009-12-07  Cedric BAIL
+
+	* Fix error when retrieving a different float type than the stored one.
+	* Reduce convertion with a little memory overhead.
+
+2009-12-07  Vincent Torri
+
+	* Include winsock2.h in eet_image.c for htonl definition on Windows.
+	* Fix Visual Studio project files
+
+2009-12-11  Cedric BAIL
+
+	* Make eet_data_descriptor_free safe to call on NULL pointer.
+
+2009-12-21  Cedric BAIL
+
+	* More work on eet_node dump code.
+
+2009-12-28  Cedric BAIL
+
+	* Add fully functionnal eet_node dump code.
+
+2009-12-29  Cedric BAIL
+
+	* Don't mess up when memory realloc failed during data descriptor creation.
+
+2010-01-04  Carsten Haitzler (The Rasterman)
+
+        * Fix another thread deadlock in mutex handling even in a single-threaded app.
+
+2010-01-12  Cedric BAIL
+
+	* Rewrite Eet_Data. Now you can do list/hash/array of strings and all
+	the test suite is passing.
+	* Add eet_data_node_decode_cipher and eet_data_node_read_cipher.
+
+2010-01-15  Cedric BAIL
+
+	* Fix amalgamation.
+
+2010-01-16  Vincent Torri
+
+	* eet_cipher.c: Fix arithmetic pointer on void *
+
+2010-01-17  Cedric BAIL
+
+	* Add a mempool for Eet_Node.
+
+2010-01-21  Cedric BAIL
+
+	* Add experimental API to walk Eet_Node tree.
+
+2010-01-22  Cedric BAIL
+
+	* Add VAR_ARRAY tests.
+
+2010-01-27  Cedric BAIL
+
+	* Improve security by zeroying cipher material as soon as possible.
+
+2010-01-27  Cedric BAIL
+
+	* Improve security by zeroying cipher material as soon as possible.
+
+2010-03-01  Albin Tonnerre
+
+	* Fix override of global symbols.
+
+2010-03-15  Adam Simpkins / Cedric BAIL
+
+	* Fix clearcache race condition.
+
+2010-04-02  Cedric BAIL
+
+	* Fix eet_data_node_read_cipher return type.
+	* Add Eet_Connection.
+
+2010-04-07  Cedric BAIL
+
+	* Improve eet_eina_file_data_descriptor_class_set by using
+	eina_hash_direct_add to avoid duplication hash key string.
+
+2010-04-08  Cedric BAIL
+
+	* Fix file corruption reported by Tiago Falcao <tiago@profusion.mobi>
+
+2010-04-09  Cedric BAIL
+
+	* Add eet_sync.
+	* Only delete the file at the last possible time.
+	* Reduce open file descriptor.
+
+2010-04-16  Cedric BAIL
+
+	* Handle fixed point in data stream.
+
+2010-04-21  Cedric BAIL
+
+	* Add EET_G_UNION and EET_G_VARIANT.
+
+2010-05-29  Carsten Haitzler (The Rasterman)
+
+	* Add EET_VERSION_MAJOR, EET_VERSION_MINOR.
+        * Add Eet_Version, eet_version.
+        * Make configure.ac use m4 defines for version
+        * Support SVN revision in version check
+
+2010-06-07  Carsten Haitzler (The Rasterman)
+
+        * Release eet 1.3.0
+
+2010-06-27  Carsten Haitzler (The Rasterman)
+
+        * Release eet 1.3.2
+

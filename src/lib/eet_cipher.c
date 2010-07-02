@@ -553,16 +553,18 @@ eet_identity_check(const void *data_base, unsigned int data_length,
    if (sign_len + cert_len + sizeof(int) * 3 > signature_length) return NULL;
 
    /* Update the signature and certificate pointer */
-   sign = signature_base + sizeof(int) * 3;
+   sign = (unsigned char *)signature_base + sizeof(int) * 3;
    cert_der = sign + sign_len;
 
 # ifdef HAVE_GNUTLS
    gnutls_x509_crt_t cert;
-   gcry_md_hd_t md;
    gnutls_datum_t datum;
    gnutls_datum_t signature;
+#  if EET_USE_NEW_GNUTLS_API
    unsigned char *hash;
+   gcry_md_hd_t md;
    int err;
+#  endif
 
    /* Create an understanding certificate structure for gnutls */
    datum.data = (void *)cert_der;
@@ -767,11 +769,19 @@ eet_cipher(const void *data, unsigned int size, const char *key, unsigned int le
    memcpy(iv, key_material, MAX_IV_LEN);
    memcpy(ik, key_material + MAX_IV_LEN, MAX_KEY_LEN);
 
+   memset(key_material, 0, sizeof (key_material));
+
    crypted_length = ((((size + sizeof (unsigned int)) >> 5) + 1) << 5);
    ret = malloc(crypted_length + sizeof(unsigned int));
-   if (!ret) return EET_ERROR_OUT_OF_MEMORY;
+   if (!ret) {
+      memset(iv, 0, sizeof (iv));
+      memset(ik, 0, sizeof (ik));
+      memset(&salt, 0, sizeof (salt));
+      return EET_ERROR_OUT_OF_MEMORY;
+   }
 
    *ret = salt;
+   memset(&salt, 0, sizeof (salt));
    tmp = htonl(size);
 
 #ifdef HAVE_GNUTLS
@@ -787,6 +797,9 @@ eet_cipher(const void *data, unsigned int size, const char *key, unsigned int le
    if (err) goto on_error;
    err = gcry_cipher_setkey(cipher, ik, MAX_KEY_LEN);
    if (err) goto on_error;
+
+   memset(iv, 0, sizeof (iv));
+   memset(ik, 0, sizeof (ik));
 
    /* Gcrypt encrypt */
    err = gcry_cipher_encrypt(cipher, (unsigned char *)(ret + 1), crypted_length, NULL, 0);
@@ -806,6 +819,9 @@ eet_cipher(const void *data, unsigned int size, const char *key, unsigned int le
    if (!EVP_EncryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, ik, iv)) goto on_error;
    opened = 1;
 
+   memset(iv, 0, sizeof (iv));
+   memset(ik, 0, sizeof (ik));
+
    /* Openssl encrypt */
    if (!EVP_EncryptUpdate(&ctx, (unsigned char*)(ret + 1), &tmp_len, (unsigned char*) buffer, size + sizeof (unsigned int)))
      goto on_error;
@@ -824,6 +840,9 @@ eet_cipher(const void *data, unsigned int size, const char *key, unsigned int le
    return EET_ERROR_NONE;
 
  on_error:
+   memset(iv, 0, sizeof (iv));
+   memset(ik, 0, sizeof (ik));
+
 # ifdef HAVE_GNUTLS
    /* Gcrypt error */
    if (opened) gcry_cipher_close(cipher);
@@ -870,8 +889,12 @@ eet_decipher(const void *data, unsigned int size, const char *key, unsigned int 
 
    /* Generate the iv and the key with the salt */
    eet_pbkdf2_sha1(key, length, (unsigned char *)&salt, sizeof(unsigned int), 2048, key_material, MAX_KEY_LEN + MAX_IV_LEN);
+
    memcpy(iv, key_material, MAX_IV_LEN);
    memcpy(ik, key_material + MAX_IV_LEN, MAX_KEY_LEN);
+
+   memset(key_material, 0, sizeof (key_material));
+   memset(&salt, 0, sizeof (salt));
 
    /* Align to AES block size if size is not align */
    tmp_len = size - sizeof (unsigned int);
@@ -892,6 +915,9 @@ eet_decipher(const void *data, unsigned int size, const char *key, unsigned int 
    err = gcry_cipher_setkey(cipher, ik, MAX_KEY_LEN);
    if (err) goto on_error;
 
+   memset(iv, 0, sizeof (iv));
+   memset(ik, 0, sizeof (ik));
+
    /* Gcrypt decrypt */
    err = gcry_cipher_decrypt(cipher, ret, tmp_len, ((unsigned int *)data) + 1, tmp_len);
    if (err) goto on_error;
@@ -909,6 +935,9 @@ eet_decipher(const void *data, unsigned int size, const char *key, unsigned int 
 
    if (!EVP_DecryptInit_ex(&ctx, EVP_aes_256_cbc(), NULL, ik, iv))
      goto on_error;
+
+   memset(iv, 0, sizeof (iv));
+   memset(ik, 0, sizeof (ik));
 
    /* Openssl decrypt */
    if (!EVP_DecryptUpdate(&ctx, (unsigned char *) ret, &tmp,
@@ -938,6 +967,9 @@ eet_decipher(const void *data, unsigned int size, const char *key, unsigned int 
    return EET_ERROR_NONE;
 
  on_error:
+   memset(iv, 0, sizeof (iv));
+   memset(ik, 0, sizeof (ik));
+
 # ifdef HAVE_GNUTLS
 # else
    if (opened) EVP_CIPHER_CTX_cleanup(&ctx);
